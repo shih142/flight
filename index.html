@@ -30,7 +30,6 @@
         .input-group label { font-size: 11px; font-weight: 700; display: block; margin-bottom: 4px; color: var(--color-text-secondary); text-transform: uppercase; }
         .form-control { width: 100%; height: 40px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); font-family: inherit; font-weight: 600; }
         
-        /* 按鈕區佈局 */
         .button-group { display: flex; gap: 8px; margin-top: 18px; }
         .btn { height: 40px; padding: 0 20px; border-radius: var(--radius-md); font-weight: 700; cursor: pointer; border: none; display: flex; align-items: center; gap: 8px; transition: 0.2s; font-size: 14px; }
         .btn-primary { background: var(--gradient-sunset); color: white; }
@@ -118,12 +117,23 @@
             </div>
         </div>
     </div>
-<script>
+
+    <script>
         lucide.createIcons();
         let priceChartInstance = null;
         let countdownInterval = null;
 
-        // 1. 深色模式切換
+        // 🛑 核心配置：請將此處替換為您的 Render 實際網址
+        const BACKEND_URL = 'https://xn--render-on9im33alvs912abz6a5hj.onrender.com';
+
+        // 喚醒機制：當使用者點擊輸入框，先悄悄叫醒 Render
+        document.querySelectorAll('.form-control').forEach(el => {
+            el.addEventListener('focus', () => {
+                fetch(BACKEND_URL + '/').catch(() => {});
+                console.log("正在喚醒 Render...");
+            });
+        });
+
         document.getElementById('themeToggle').addEventListener('click', () => {
             const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', theme);
@@ -134,70 +144,57 @@
         const stopBtn = document.getElementById('stopBtn');
         const resultsArea = document.getElementById('resultsArea');
 
-        // 2. 核心查詢函數
         async function runSearch() {
             const origin = document.getElementById('originInput').value.trim().toUpperCase();
             const dest = document.getElementById('destInput').value.trim().toUpperCase();
             const threshold = parseInt(document.getElementById('thresholdInput').value);
 
-            if (!origin || !dest) {
-                alert("請輸入出發地與目的地代碼");
-                return;
-            }
-
-            searchBtn.innerHTML = '<i data-lucide="loader-2" class="lucide-spin"></i>';
+            searchBtn.innerHTML = '<i data-lucide="loader-2" class="lucide-spin"></i> 運算中...';
             searchBtn.disabled = true;
             lucide.createIcons();
 
             try {
-                // 🛑 請注意：請務必將此處網址替換為你實際的 Render 網址
-                const backendUrl = 'https://flight-gvdl.onrender.com/api/search';
-                
-                const response = await fetch(backendUrl, {
+                const response = await fetch(`${BACKEND_URL}/api/search`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        origin: origin,
-                        destination: dest,
+                        origin: origin, destination: dest,
                         depart_date: document.getElementById('dateStart').value,
                         return_date: document.getElementById('dateEnd').value,
                         threshold: threshold
                     })
                 });
 
-                // ✅ 修正點：確保使用正確的賦值語法
+                // ✅ 修正語法：正確接收 JSON
                 const res = await response.json();
-
+                
                 if (res.success) {
                     resultsArea.classList.add('active');
                     document.getElementById('priceDisplay').innerText = res.data.best_price.toLocaleString();
                     document.getElementById('destDisplay').innerText = `${origin} ✈ ${dest} | ${res.data.best_date}`;
                     
-                    const card = document.getElementById('bestPriceCard');
-                    const savingEl = document.getElementById('savingText');
-                    
                     if (res.is_alert) {
-                        card.classList.add('alert');
-                        savingEl.innerHTML = `<i data-lucide="trending-down" style="width:14px"></i> 低於門檻！省下 TWD ${res.saving.toLocaleString()}`;
+                        document.getElementById('bestPriceCard').classList.add('alert');
+                        document.getElementById('savingText').innerHTML = `低於門檻！省下 TWD ${res.saving.toLocaleString()}`;
                     } else {
-                        card.classList.remove('alert');
-                        savingEl.innerText = `目前高於門檻`;
+                        document.getElementById('bestPriceCard').classList.remove('alert');
+                        document.getElementById('savingText').innerText = `目前高於門檻`;
                     }
 
                     document.getElementById('resultsTable').innerHTML = res.data.results.map(r => `
                         <tr class="${r.price === res.data.best_price ? 'row-lowest' : ''}">
                             <td>${r.date_range}</td>
-                            <td style="font-family:'Fira Code'">TWD ${r.price.toLocaleString()}</td>
+                            <td>TWD ${r.price.toLocaleString()}</td>
                         </tr>
                     `).join('');
 
                     drawChart(res.history);
                 } else {
-                    alert("查詢失敗：" + (res.detail || "未知錯誤"));
+                    alert("查詢失敗：" + (res.detail || "伺服器超時，請再試一次"));
                 }
             } catch (err) {
-                console.error("Fetch Error:", err);
-                alert("連線失敗！Render 後端可能正在啟動中，請等待約 1 分鐘後再試。");
+                console.error(err);
+                alert("連線失敗：Render 喚醒時間過長，請稍候 30 秒再點一次查詢。");
             } finally {
                 searchBtn.innerHTML = '<i data-lucide="search"></i> 立即查詢';
                 searchBtn.disabled = false;
@@ -207,7 +204,6 @@
 
         searchBtn.addEventListener('click', runSearch);
 
-        // 3. 監控邏輯
         monitorBtn.addEventListener('click', () => {
             document.getElementById('statusDot').classList.add('active');
             document.getElementById('statusText').innerText = '監控運行中';
@@ -215,8 +211,7 @@
             stopBtn.style.background = 'var(--color-danger)';
             stopBtn.style.color = 'white';
             stopBtn.style.cursor = 'pointer';
-            
-            startCountdown(3600); // 1 小時倒數
+            startCountdown(3600);
         });
 
         stopBtn.addEventListener('click', () => {
@@ -238,9 +233,7 @@
                 let seconds = parseInt(timer % 60, 10);
                 minutes = minutes < 10 ? "0" + minutes : minutes;
                 seconds = seconds < 10 ? "0" + seconds : seconds;
-
                 document.getElementById('countdownText').innerText = minutes + ":" + seconds;
-
                 if (--timer < 0) {
                     runSearch();
                     timer = duration;
@@ -248,11 +241,9 @@
             }, 1000);
         }
 
-        // 4. 圖表邏輯
         function drawChart(historyData) {
             const ctx = document.getElementById('priceChart').getContext('2d');
             if (priceChartInstance) priceChartInstance.destroy();
-
             priceChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
