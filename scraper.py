@@ -29,7 +29,6 @@ async def get_flight_prices(origin_code: str, dest_code: str, ddate: str, rdate:
                          "--disable-dev-shm-usage", # 解決記憶體不足問題
                          "--disable-gpu",           # 雲端環境不需要 GPU
     ]
-)
                 )
                 
                 context = await browser.new_context(
