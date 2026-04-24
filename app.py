@@ -157,7 +157,9 @@ async def search_flights(req: SearchRequest):
 
 # 6. 雲端部署關鍵啟動設定
 if __name__ == "__main__":
-    # Render 等平台會注入 PORT 環境變數
+    import os
+    import uvicorn
+    # Railway 會提供 PORT 環境變數，如果沒有才預設 8000
     port = int(os.environ.get("PORT", 8000))
-    # host 必須設為 0.0.0.0 才能讓外部網路存取
+    # 💡 host 必須是 "0.0.0.0"，絕對不能是 "127.0.0.1"
     uvicorn.run(app, host="0.0.0.0", port=port)
