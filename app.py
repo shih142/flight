@@ -68,12 +68,19 @@ async def root():
 async def search_flights(req: SearchRequest):
     print(f"\n--- 🚀 查詢請求: {req.origin} ✈ {req.destination} ---")
     
-    try:
-        # 執行爬蟲，設定 60 秒超時以應付雲端延遲
-        result = await asyncio.wait_for(
-            get_flight_prices(req.origin, req.destination, req.depart_date, req.return_date),
-            timeout=60.0 
-        )
+    # 確保這行在 scraper.py 裡有正確執行
+# 建議把 timeout 縮短一點點（例如 25 秒），如果失敗就回傳「請重試」
+# 這樣至少不會讓瀏覽器直接噴 504 醜醜的畫面
+try:
+    result = await asyncio.wait_for(
+        get_flight_prices(req.origin, req.destination, req.depart_date, req.return_date),
+        timeout=25.0 
+    )
+except asyncio.TimeoutError:
+    return {
+        "success": False, 
+        "detail": "Render 伺服器運算較慢，請點擊「立即查詢」再試一次 (這能幫助喚醒快取)"
+    }
         
         if result.get("status") == "error":
             raise HTTPException(status_code=500, detail=result.get("message"))
