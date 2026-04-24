@@ -71,14 +71,14 @@ async def search_flights(req: SearchRequest):
     # 確保這行在 scraper.py 裡有正確執行
 # 建議把 timeout 縮短一點點（例如 25 秒），如果失敗就回傳「請重試」
 # 這樣至少不會讓瀏覽器直接噴 504 醜醜的畫面
-try:
-        # 1. 執行爬蟲
+    try:
+        # 1. 執行爬蟲 (這行縮排 8 個空格)
         result = await asyncio.wait_for(
             get_flight_prices(req.origin, req.destination, req.depart_date, req.return_date),
             timeout=25.0 
         )
         
-        # 2. 檢查爬蟲結果 (這幾行必須跟上面的 result 對齊！)
+        # 2. 檢查結果 (這些 if 必須與上面的 result 對齊)
         if result.get("status") == "error":
             raise HTTPException(status_code=500, detail=result.get("message"))
             
@@ -86,14 +86,25 @@ try:
         route_key = f"{req.origin}-{req.destination}-{req.depart_date}"
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
 
+        # 這裡繼續處理資料庫邏輯... (同樣要對齊)
+        history_data = [{"time": "今日", "price": best_price}]
+        
+        return {
+            "success": True,
+            "is_alert": best_price <= req.threshold,
+            "saving": max(0, req.threshold - best_price),
+            "data": result,
+            "history": history_data
+        }
+
     except asyncio.TimeoutError:
-        # 這裡處理超時
+        # 這裡縮排退回與 try 對齊 (4 個空格)
         return {
             "success": False, 
             "detail": "Render 伺服器運算較慢，請點擊「立即查詢」再試一次"
         }
     except Exception as e:
-        # 這裡處理其他錯誤
+        # 這裡縮排退回與 try 對齊 (4 個空格)
         raise HTTPException(status_code=500, detail=str(e))
     
         
