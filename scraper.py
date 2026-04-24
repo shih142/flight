@@ -3,13 +3,27 @@ import re
 import random
 from playwright.async_api import async_playwright, Route, Request
 
-async def block_unnecessary(route: Route, request: Request):
-    # 只封鎖圖片和字體，保留 CSS 和部分 JS 以免網頁渲染不完全
-    if request.resource_type in ["image", "font", "media"]:
+# 找到你的 scraper.py 中的 block_unnecessary 函數
+async def block_unnecessary(route, request):
+    # 擴大封鎖範圍：連 CSS、圖片、字體、廣告全部擋掉
+    if request.resource_type in ["image", "font", "media", "stylesheet", "other"]:
         await route.abort()
+    elif "google" in request.url or "facebook" in request.url or "analytics" in request.url:
+        await route.abort() # 擋掉追蹤器
     else:
         await route.continue_()
 
+# 在 launch 參數中加入這兩行，可以節省記憶體
+browser = await p.chromium.launch(
+    headless=True,
+    args=[
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--single-process",  # 強制單進程，節省 RAM
+        "--no-zygote"        # 減少啟動預載
+    ]
+)
 async def get_flight_prices(origin_code: str, dest_code: str, ddate: str, rdate: str = None, max_retries=2):
     triptype = 'rt' if rdate else 'ow'
     origin_code, dest_code = origin_code.lower(), dest_code.lower()
