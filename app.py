@@ -19,7 +19,8 @@ app = FastAPI(
 # 1. 跨域設定 (CORS)：讓您的 Netlify 前端能連線到此後端
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"], # 💡 這裡一定要是 ["*"]，代表允許所有網域連線
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
