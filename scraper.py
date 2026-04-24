@@ -28,6 +28,8 @@ async def get_flight_prices(origin_code: str, dest_code: str, ddate: str, rdate:
                          "--disable-setuid-sandbox",
                          "--disable-dev-shm-usage", # 解決記憶體不足問題
                          "--disable-gpu",           # 雲端環境不需要 GPU
+                         "--single-process",  # 💡 關鍵：強制單線程運行，節省記憶體
+                         "--no-zygote"        # 💡 關鍵：減少啟動預載
     ]
                 )
                 
