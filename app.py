@@ -72,22 +72,30 @@ async def search_flights(req: SearchRequest):
 # 建議把 timeout 縮短一點點（例如 25 秒），如果失敗就回傳「請重試」
 # 這樣至少不會讓瀏覽器直接噴 504 醜醜的畫面
 try:
-    result = await asyncio.wait_for(
-        get_flight_prices(req.origin, req.destination, req.depart_date, req.return_date),
-        timeout=25.0 
-    )
-except asyncio.TimeoutError:
-    return {
-        "success": False, 
-        "detail": "Render 伺服器運算較慢，請點擊「立即查詢」再試一次 (這能幫助喚醒快取)"
-    }
+        # 1. 執行爬蟲
+        result = await asyncio.wait_for(
+            get_flight_prices(req.origin, req.destination, req.depart_date, req.return_date),
+            timeout=25.0 
+        )
         
+        # 2. 檢查爬蟲結果 (這幾行必須跟上面的 result 對齊！)
         if result.get("status") == "error":
             raise HTTPException(status_code=500, detail=result.get("message"))
             
         best_price = result.get("best_price", 0)
         route_key = f"{req.origin}-{req.destination}-{req.depart_date}"
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    except asyncio.TimeoutError:
+        # 這裡處理超時
+        return {
+            "success": False, 
+            "detail": "Render 伺服器運算較慢，請點擊「立即查詢」再試一次"
+        }
+    except Exception as e:
+        # 這裡處理其他錯誤
+        raise HTTPException(status_code=500, detail=str(e))
+    
         
         # 寫入歷史紀錄
         history_data = []
