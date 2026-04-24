@@ -118,12 +118,12 @@
             </div>
         </div>
     </div>
-
-    <script>
+<script>
         lucide.createIcons();
         let priceChartInstance = null;
         let countdownInterval = null;
 
+        // 1. 深色模式切換
         document.getElementById('themeToggle').addEventListener('click', () => {
             const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', theme);
@@ -134,52 +134,70 @@
         const stopBtn = document.getElementById('stopBtn');
         const resultsArea = document.getElementById('resultsArea');
 
-        // 核心查詢函數
+        // 2. 核心查詢函數
         async function runSearch() {
             const origin = document.getElementById('originInput').value.trim().toUpperCase();
             const dest = document.getElementById('destInput').value.trim().toUpperCase();
             const threshold = parseInt(document.getElementById('thresholdInput').value);
 
+            if (!origin || !dest) {
+                alert("請輸入出發地與目的地代碼");
+                return;
+            }
+
             searchBtn.innerHTML = '<i data-lucide="loader-2" class="lucide-spin"></i>';
             searchBtn.disabled = true;
+            lucide.createIcons();
 
             try {
-                const response = await fetch('https://flight-gvdl.onrender.com/api/search', { 
+                // 🛑 請注意：請務必將此處網址替換為你實際的 Render 網址
+                const backendUrl = 'https://你的Render專案名稱.onrender.com/api/search';
+                
+                const response = await fetch(backendUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        origin: origin, destination: dest,
+                        origin: origin,
+                        destination: dest,
                         depart_date: document.getElementById('dateStart').value,
                         return_date: document.getElementById('dateEnd').value,
                         threshold: threshold
                     })
                 });
 
+                // ✅ 修正點：確保使用正確的賦值語法
                 const res = await response.json();
+
                 if (res.success) {
                     resultsArea.classList.add('active');
                     document.getElementById('priceDisplay').innerText = res.data.best_price.toLocaleString();
                     document.getElementById('destDisplay').innerText = `${origin} ✈ ${dest} | ${res.data.best_date}`;
                     
+                    const card = document.getElementById('bestPriceCard');
+                    const savingEl = document.getElementById('savingText');
+                    
                     if (res.is_alert) {
-                        document.getElementById('bestPriceCard').classList.add('alert');
-                        document.getElementById('savingText').innerHTML = `低於門檻！省下 TWD ${res.saving.toLocaleString()}`;
+                        card.classList.add('alert');
+                        savingEl.innerHTML = `<i data-lucide="trending-down" style="width:14px"></i> 低於門檻！省下 TWD ${res.saving.toLocaleString()}`;
                     } else {
-                        document.getElementById('bestPriceCard').classList.remove('alert');
-                        document.getElementById('savingText').innerText = `目前高於門檻`;
+                        card.classList.remove('alert');
+                        savingEl.innerText = `目前高於門檻`;
                     }
 
                     document.getElementById('resultsTable').innerHTML = res.data.results.map(r => `
                         <tr class="${r.price === res.data.best_price ? 'row-lowest' : ''}">
                             <td>${r.date_range}</td>
-                            <td>TWD ${r.price.toLocaleString()}</td>
+                            <td style="font-family:'Fira Code'">TWD ${r.price.toLocaleString()}</td>
                         </tr>
                     `).join('');
 
                     drawChart(res.history);
+                } else {
+                    alert("查詢失敗：" + (res.detail || "未知錯誤"));
                 }
             } catch (err) {
-                console.error(err);
+                console.error("Fetch Error:", err);
+                alert("連線失敗！Render 後端可能正在啟動中，請等待約 1 分鐘後再試。");
             } finally {
                 searchBtn.innerHTML = '<i data-lucide="search"></i> 立即查詢';
                 searchBtn.disabled = false;
@@ -189,7 +207,7 @@
 
         searchBtn.addEventListener('click', runSearch);
 
-        // 監控邏輯
+        // 3. 監控邏輯
         monitorBtn.addEventListener('click', () => {
             document.getElementById('statusDot').classList.add('active');
             document.getElementById('statusText').innerText = '監控運行中';
@@ -224,15 +242,17 @@
                 document.getElementById('countdownText').innerText = minutes + ":" + seconds;
 
                 if (--timer < 0) {
-                    runSearch(); // 時間到自動查價
+                    runSearch();
                     timer = duration;
                 }
             }, 1000);
         }
 
+        // 4. 圖表邏輯
         function drawChart(historyData) {
             const ctx = document.getElementById('priceChart').getContext('2d');
             if (priceChartInstance) priceChartInstance.destroy();
+
             priceChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
