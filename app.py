@@ -15,7 +15,15 @@ app = FastAPI(
     title="黃仁蝦機票監控 API Pro",
     description="全球機票監控與歷史價格追蹤系統"
 )
+# 💡 加入這個 /health 路由，讓 Railway 知道我們活著
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 
+# 💡 保留原本的根目錄檢查
+@app.get("/")
+async def root():
+    return {"status": "success", "message": "API is live!"}
 # 1. 跨域設定 (CORS)：讓您的 Netlify 前端能連線到此後端
 app.add_middleware(
     CORSMiddleware,
